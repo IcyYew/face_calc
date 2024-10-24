@@ -6,6 +6,10 @@
 #define FACE_MAX 2048
 #define ATTEMPTS_MAX 5
 
+/*
+//TESTING VARS
+#define MAX_ALLOCATIONS 2
+*/
 
 typedef struct {
 	int *n_log;
@@ -16,51 +20,35 @@ typedef struct {
 	short alloc_cap;
 } DataLog;
 
-
-
-DataLog* init_data_log(short alloc_cap) {
-	DataLog *log = (DataLog*) malloc(sizeof(DataLog));
-	log->n_log = (int*) malloc(sizeof(int) * alloc_cap);
-	log->x_log = (int*) malloc(sizeof(int) * alloc_cap);
-	log->seed_log = (unsigned short*) malloc(sizeof( unsigned short) * alloc_cap);
-	log->summation_log = (int*) malloc(sizeof(int) * alloc_cap);
-	log->num_runs = 0;
-	log->alloc_cap = alloc_cap;
-	return log;
-}
-
-void expand_data_log(DataLog *log) {
-	printf("\n\n\t\t\tEXPANDING LOG ALLOCATION\n\n");
-	log->alloc_cap *= 2;
-	log->n_log = (int*) realloc(log->n_log, sizeof(int) * log->alloc_cap);
-	log->x_log = (int*) realloc(log->x_log, sizeof(int) * log->alloc_cap);
-	log->seed_log = (unsigned short*) realloc(log->seed_log, sizeof(unsigned short) * log->alloc_cap);
-	log->summation_log = (int*) realloc(log->summation_log, sizeof(int) * log->alloc_cap);
-}
-
-void add_to_log(DataLog *log, int n, int x, unsigned short seed, int result) {
-	short tmp_runs = log->num_runs;
-	if (tmp_runs >= log->alloc_cap) {
-		expand_data_log(log);
-	}
-	log->n_log[tmp_runs] = n;
-	log->x_log[tmp_runs] = x;
-	log->seed_log[tmp_runs] = seed;
-	log->summation_log[tmp_runs] = result;
-	log->num_runs++;
-}
-
+// Initialize the data log struct
+DataLog* init_data_log(short alloc_cap);
+// Boilerplate handler for reallocation fail
+void realloc_fail(DataLog *log);
+// Boilerplate handler for malloc fail, no parameters needed since this can only happen at initialization
+void malloc_fail();
+// add content to the log
+void add_to_log(DataLog *log, int n, int x, unsigned short seed, int result);
+// free all allocated memory in the log
+void free_memory(DataLog *log);
+// expand the log to allocate more memory if we run out of space
+void expand_data_log(DataLog *log);
+// dump the entire log
 void dump_log(DataLog *log);
 
-int mode_input();
+/*
+// testing methods for realloc fail
+int num_allocations = 0;
+void *realloc_fail_test(void *ptr, size_t size);
 
+
+void expand_data_log_m(DataLog *log);
+*/
+
+int mode_input();
 // calculation to determine the sum of all visible faces
 int summation_of_faces(int x, int n);
-
 //generate or take input of a 4 character hexadecimal sequence i.e. 0xABCE
 void seed_gen(unsigned short* seed);
-
-void free_memory(DataLog *log);
 
 int main() {
 	int n, x, result;
@@ -190,22 +178,9 @@ int main() {
 	}
 }
 
-void dump_log(DataLog *log) {
-	printf("Log Dump:\n");
-	printf("-----------------------------------------------------------------\n");
-	printf("| Run # | Faces   | Top Face | Seed              | Result         |\n");
-	printf("-----------------------------------------------------------------\n");
-	
-	for (int i = 0; i < log->num_runs; i++) {
-		if (log->seed_log[i] == 0) {
-			printf("| %-5d | %-7d | %-8d | %-14s | %-14d |\n", i + 1, log->n_log[i], log->x_log[i], "no seed or 0x0000", log->summation_log[i]);  
-		}
-		else {
-			printf("| %-5d | %-7d | %-8d | 0x%-12X    | %-14d |\n", i + 1, log->n_log[i], log->x_log[i], log->seed_log[i], log->summation_log[i]);
-		}
-	}
-	printf("-----------------------------------------------------------------\n");
-}
+/* *******************************************************************
+   *						Regular Functions                        *
+   ******************************************************************* */
 
 void seed_gen(unsigned short* seed) {
 	srand(time(NULL));
@@ -258,6 +233,27 @@ int mode_input() {
 	return -1;
 }
 
+
+/* *******************************************************************
+   *						Logging Functions                        *
+   ******************************************************************* */
+void dump_log(DataLog *log) {
+	printf("Log Dump:\n");
+	printf("-----------------------------------------------------------------\n");
+	printf("| Run # | Faces   | Top Face | Seed              | Result         |\n");
+	printf("-----------------------------------------------------------------\n");
+	
+	for (int i = 0; i < log->num_runs; i++) {
+		if (log->seed_log[i] == 0) {
+			printf("| %-5d | %-7d | %-8d | %-14s | %-14d |\n", i + 1, log->n_log[i], log->x_log[i], "no seed or 0x0000", log->summation_log[i]);  
+		}
+		else {
+			printf("| %-5d | %-7d | %-8d | 0x%-12X    | %-14d |\n", i + 1, log->n_log[i], log->x_log[i], log->seed_log[i], log->summation_log[i]);
+		}
+	}
+	printf("-----------------------------------------------------------------\n");
+}
+
 void free_memory(DataLog *log) {
 	free(log->n_log);
 	free(log->x_log);
@@ -265,3 +261,119 @@ void free_memory(DataLog *log) {
 	free(log->summation_log);
 	free(log);
 }
+
+void add_to_log(DataLog *log, int n, int x, unsigned short seed, int result) {
+	short tmp_runs = log->num_runs;
+	if (tmp_runs >= log->alloc_cap) {
+		expand_data_log(log);
+	}
+	log->n_log[tmp_runs] = n;
+	log->x_log[tmp_runs] = x;
+	log->seed_log[tmp_runs] = seed;
+	log->summation_log[tmp_runs] = result;
+	log->num_runs++;
+}
+
+DataLog* init_data_log(short alloc_cap) {
+	DataLog *log = (DataLog*) malloc(sizeof(DataLog));
+	log->n_log = (int*) malloc(sizeof(int) * alloc_cap);
+	if (log->n_log == NULL) {
+		malloc_fail();
+	}
+	log->x_log = (int*) malloc(sizeof(int) * alloc_cap);
+	if (log->x_log == NULL) {
+		malloc_fail();
+	}
+	log->seed_log = (unsigned short*) malloc(sizeof( unsigned short) * alloc_cap);
+	if (log->seed_log == NULL) {
+		malloc_fail();
+	}
+	log->summation_log = (int*) malloc(sizeof(int) * alloc_cap);
+	if(log->summation_log == NULL) {
+		malloc_fail();
+	}
+	log->num_runs = 0;
+	log->alloc_cap = alloc_cap;
+	return log;
+}
+
+void malloc_fail() {
+	printf("ERROR ALLOCATING: Exiting program\n");
+	printf("SERIOUS FAILURE, INSPECT YOUR ENVIRONMENT AND/OR SYSTEM!\n");
+	exit(0);
+}
+
+
+
+void expand_data_log(DataLog *log) {
+	printf("\n\n\t\t\tEXPANDING LOG ALLOCATION\n\n");
+	log->alloc_cap *= 1.5;
+	
+	int *tmp_n_log = (int*) realloc(log->n_log, sizeof(int) * log->alloc_cap);
+	if (tmp_n_log == NULL) {
+		realloc_fail(log);
+	}
+	log->n_log = tmp_n_log;
+	
+	int *tmp_x_log = (int*) realloc(log->x_log, sizeof(int) * log->alloc_cap);
+	if (tmp_x_log == NULL) {
+		realloc_fail(log);
+	}
+	log->x_log = tmp_x_log;
+	
+	unsigned short *tmp_seed_log = (unsigned short*) realloc(log->seed_log, sizeof(unsigned short) * log->alloc_cap);
+	if (tmp_seed_log == NULL) {
+		realloc_fail(log);
+	}
+	log->seed_log = tmp_seed_log;
+	
+	int *tmp_summation_log = (int*) realloc(log->summation_log, sizeof(int) * log->alloc_cap);
+	if (tmp_summation_log == NULL) {
+		realloc_fail(log);
+	}
+	log->summation_log = tmp_summation_log;
+}
+
+void realloc_fail(DataLog *log) {
+	printf("ERROR REALLOCATING: Exiting program\n");
+	dump_log(log);
+	exit(0);
+}
+
+/*
+void *realloc_fail_test(void *ptr, size_t size) {
+	num_allocations++;
+	if (num_allocations > MAX_ALLOCATIONS) {
+		return NULL;
+	}
+	return realloc(ptr, size);
+}
+
+void expand_data_log_m(DataLog *log) {
+	printf("\n\n\t\t\tEXPANDING LOG ALLOCATION\n\n");
+	log->alloc_cap *= 1.5;
+	
+	int *tmp_n_log = (int*) realloc_fail_test(log->n_log, sizeof(int) * log->alloc_cap);
+	if (tmp_n_log == NULL) {
+		realloc_fail(log);
+	}
+	log->n_log = tmp_n_log;
+	
+	int *tmp_x_log = (int*) realloc_fail_test(log->n_log, sizeof(int) * log->alloc_cap);
+	if (tmp_x_log == NULL) {
+		realloc_fail(log);
+	}
+	log->x_log = tmp_x_log;
+	
+	unsigned short *tmp_seed_log = (unsigned short*) realloc_fail_test(log->seed_log, sizeof(unsigned short) * log->alloc_cap);
+	if (tmp_seed_log == NULL) {
+		realloc_fail(log);
+	}
+	log->seed_log = tmp_seed_log;
+	
+	int *tmp_summation_log = (int*) realloc_fail_test(log->n_log, sizeof(int) * log->alloc_cap);
+	if (tmp_summation_log == NULL) {
+		realloc_fail(log);
+	}
+	log->summation_log = tmp_summation_log;
+}*/
