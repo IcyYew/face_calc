@@ -4,62 +4,62 @@
 #include <time.h>
 
 #define FACE_MAX 2048
+#define ATTEMPTS_MAX 5
 
 
 
+int mode_input();
 
-
+// add information about a run to the "log", maximum of 100 for this iteration of the program's purposes
 void add_to_log(int *n_log, int *x_log, unsigned short *seed_log, int *summation_log, 
 				int n, int x, unsigned short seed, short num_runs, int result);
+				
+
+// dump the entire log in pretty format				
 void dump_log(int *n_log, int *x_log, unsigned short *seed_log, int *summation_log, short num_runs);
+
+// calculation to determine the sum of all visible faces
 int summation_of_faces(int x, int n);
+
+//generate or take input of a 4 character hexadecimal sequence i.e. 0xABCE
 void seed_gen(unsigned short* seed);
 
 int main() {
-	// top face of die
-	int x;
-	// number of total face on the die
-	int n;
+	int x, n, result, max_num_faces, mode = -1, running = 1, mode_lock = 0;
 	
-	int num_faces;
-	
-	int result;
-	
-	// mode selection
-	int mode = -1;
-	// running bool
-	int running = 1;
-	// number of runs this session
-	//  note! decide if I want to keep this on a session basis or keep a running total when I implement logging of results between program runs
 	short num_runs = 0;
-	// seed for the random mode
+	
 	unsigned short seed;
 	
-	int x_log[100];
-	int n_log[100];
-	// note!!! need to set seed_log[num_runs] to 0 if random mode not selected
+	int x_log[100], n_log[100], summation_log[100];
+	// stores seed for each run, 0 if not a random mode run
 	unsigned short seed_log[100];
-	int summation_log[100];
-	
-	
 	
 	printf("This program calculates the sum of all visible faces of a die.\n");
 	printf("It features two modes, manual and random.\n");
 	printf("Please input a face limit for the random mode, maximum of 2048: ");
-	if (scanf("%d", &num_faces) > FACE_MAX) {
-		printf("INPUT ERROR: Using default maximum of 2048\n");
+	
+	if (scanf("%d", &max_num_faces) != 1) {
+		printf("INPUT ERROR: Invalid input. Using default maximum of 2048\n");
 		while(getchar() != '\n');
-		num_faces = FACE_MAX;
+		max_num_faces = FACE_MAX;
+	}
+	else if (max_num_faces > FACE_MAX) {
+		printf("INPUT ERROR: Maximum limit exceeded. Using default maximum of 2048\n");
+		max_num_faces = FACE_MAX;
 	}
 	
-	// generate seed (or take input), seed random to the seed
 	
 	fflush(stdout);
 	while (running) {
 		if (num_runs > 0) {
 			printf("Input 0 to exit the program, 1 to continue: ");
-			scanf("%d", &running);
-			if (running != 1) {
+			if (scanf("%d", &running) != 1) {
+				printf("INPUT ERROR: Invalid input. Dumping log and exiting.\n");
+				while (getchar() != '\n');
+				break;
+			}
+			if (running == 0) {
 				break;
 			}
 		}
@@ -67,18 +67,64 @@ int main() {
 		n = 0;
 		result = 0;
 		seed = 0;
-		printf("Input 0 for manual mode, or 1 for random mode: ");
-		scanf("%d", &mode);
-		while (mode != 0 && mode != 1) {
-			printf("Input 0 for manual mode, or 1 for random mode: ");
-			scanf("%d", &mode);
+		
+		if (num_runs == 0) {
+			mode = mode_input(ATTEMPTS_MAX);
+			if (mode == -1) {
+				dump_log(n_log, x_log, seed_log, summation_log, num_runs);
+				exit(0);
+			}
+			else if (mode == 2) {
+				mode = 0;
+				mode_lock = 1;
+			}
+			else if (mode == 3) {
+				mode = 1;
+				mode_lock = 1;
+			}
 		}
+		if (!mode_lock && num_runs != 0) {
+			mode = mode_input(ATTEMPTS_MAX);
+			if (mode == -1) {
+				dump_log(n_log, x_log, seed_log, summation_log, num_runs);
+				exit(0);
+			}
+			else if (mode == 2) {
+				mode = 0;
+				mode_lock = 1;
+			}
+			else if (mode == 3) {
+				mode = 1;
+				mode_lock = 1;
+			}
+		}
+		
 		switch(mode) {
 			case(0):
+				int attempts = 0;
 				printf("\nManual mode selected!\n\tInput the number of faces on the die: ");
 				scanf("%d", &n);
 				printf("\tInput the number on the top of the die: ");
-				scanf("%d", &x);
+				while (attempts < ATTEMPTS_MAX) {
+					if (scanf("%d", &x) == 1 && x < n) {
+						break;
+					}
+					else {
+						attempts++;
+						printf("Invalid input, you have %d attempts left", ATTEMPTS_MAX - attempts);
+						while (getchar() != '\n');
+						if (attempts < ATTEMPTS_MAX) {
+							printf("\tInput the number on the top of the die: ");
+						}
+						else if (attempts == ATTEMPTS_MAX) {
+							printf("\nToo many attempts. Exiting program and dumping log.\n\n");
+							dump_log(n_log, x_log, seed_log, summation_log, num_runs);
+							exit(0);
+						}
+						
+					}
+				}
+				
 				result = summation_of_faces(x, n);
 				add_to_log(n_log, x_log, seed_log, summation_log, n, x, 0, num_runs, result);
 				printf("\n\tSummation of all visible faces for a %d sided die with %d on the top: %d\n", n, x, result); 
@@ -89,7 +135,7 @@ int main() {
 				srand(seed);
 				printf("\nRandom mode selected!");
 				printf("\n\tGenerating with seed: 0x%X ...", seed);
-				n = rand() % num_faces + 1;
+				n = rand() % max_num_faces + 1;
 				x = rand() % n + 1;
 				result = summation_of_faces(x, n);
 				add_to_log(n_log, x_log, seed_log, summation_log, n, x, seed, num_runs, result);
@@ -98,9 +144,15 @@ int main() {
 		}
 		num_runs++;
 	}
-	dump_log(n_log, x_log, seed_log, summation_log, num_runs);
-	printf("\n\nThanks for using!");
-	return 0;
+	if (num_runs == 0) {
+		printf("\n\nThanks for using!");
+		return 0;
+	}
+	else {
+		dump_log(n_log, x_log, seed_log, summation_log, num_runs);
+		printf("\n\nThanks for using!");
+		return 0;
+	}
 }
 
 void dump_log(int *n_log, int *x_log, unsigned short *seed_log, int *summation_log, short num_runs) {
@@ -152,4 +204,29 @@ void seed_gen(unsigned short* seed) {
 int summation_of_faces(int x, int n) {
 	int p1 = (n * (n + 1)) / 2;
 	return p1 - n - 1 + x;
+}
+
+int mode_input() {
+	int mode = -1;
+	int attempts = 0;
+	
+	printf("Input 0 for manual mode, or 1 for random mode...\n");
+	printf("Alternatively, input 2 for permanent manual mode, or 3 for permanent random mode: ");
+	while (attempts < ATTEMPTS_MAX) {
+		if (scanf("%d", &mode) == 1 && (mode == 0 || mode == 1 || mode == 2 || mode == 3)) {
+			return mode;
+		}
+		else {
+			attempts++;
+			printf("Invalid input, you have %d attempts left\n", ATTEMPTS_MAX - attempts);
+			while (getchar() != '\n');
+			if (attempts < ATTEMPTS_MAX) {
+				printf("Input 0 for manual mode, or 1 for random mode...\n");
+				printf("Alternatively, input 2 for permanent manual mode, or 3 for permanent random mode: ");
+			}
+		}
+		
+	}
+	printf("Too many attempts. Exiting program and dumping log.\n");
+	return -1;
 }
