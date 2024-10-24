@@ -23,9 +23,9 @@ typedef struct {
 // Initialize the data log struct
 DataLog* init_data_log(short alloc_cap);
 // Boilerplate handler for reallocation fail
-void realloc_fail(DataLog *log);
+void realloc_fail(DataLog *log, size_t size_request);
 // Boilerplate handler for malloc fail, no parameters needed since this can only happen at initialization
-void malloc_fail();
+void malloc_fail(size_t size_request);
 // add content to the log
 void add_to_log(DataLog *log, int n, int x, unsigned short seed, int result);
 // free all allocated memory in the log
@@ -256,10 +256,16 @@ void dump_log(DataLog *log) {
 
 void free_memory(DataLog *log) {
 	free(log->n_log);
+	log->n_log = NULL;
 	free(log->x_log);
+	log->x_log = NULL;
 	free(log->seed_log);
+	log->seed_log = NULL;
 	free(log->summation_log);
+	log->summation_log = NULL;
 	free(log);
+	log = NULL;
+	
 }
 
 void add_to_log(DataLog *log, int n, int x, unsigned short seed, int result) {
@@ -278,32 +284,30 @@ DataLog* init_data_log(short alloc_cap) {
 	DataLog *log = (DataLog*) malloc(sizeof(DataLog));
 	log->n_log = (int*) malloc(sizeof(int) * alloc_cap);
 	if (log->n_log == NULL) {
-		malloc_fail();
+		malloc_fail(sizeof(int) * alloc_cap);
 	}
 	log->x_log = (int*) malloc(sizeof(int) * alloc_cap);
 	if (log->x_log == NULL) {
-		malloc_fail();
+		malloc_fail(sizeof(int) * alloc_cap);
 	}
 	log->seed_log = (unsigned short*) malloc(sizeof( unsigned short) * alloc_cap);
 	if (log->seed_log == NULL) {
-		malloc_fail();
+		malloc_fail(sizeof(unsigned short) * alloc_cap);
 	}
 	log->summation_log = (int*) malloc(sizeof(int) * alloc_cap);
 	if(log->summation_log == NULL) {
-		malloc_fail();
+		malloc_fail(sizeof(int) * alloc_cap);
 	}
 	log->num_runs = 0;
 	log->alloc_cap = alloc_cap;
 	return log;
 }
 
-void malloc_fail() {
-	printf("ERROR ALLOCATING: Exiting program\n");
-	printf("SERIOUS FAILURE, INSPECT YOUR ENVIRONMENT AND/OR SYSTEM!\n");
-	exit(0);
+void malloc_fail(size_t size_request) {
+	fprintf(stderr, "ERROR: malloc() fail! Requested size: %zu bytes\n", size_request);
+	fprintf(stderr, "SERIOUS FAILURE, INSPECT YOUR ENVIRONMENT AND/OR SYSTEM!\n");
+	exit(EXIT_FAILURE);
 }
-
-
 
 void expand_data_log(DataLog *log) {
 	printf("\n\n\t\t\tEXPANDING LOG ALLOCATION\n\n");
@@ -311,33 +315,33 @@ void expand_data_log(DataLog *log) {
 	
 	int *tmp_n_log = (int*) realloc(log->n_log, sizeof(int) * log->alloc_cap);
 	if (tmp_n_log == NULL) {
-		realloc_fail(log);
+		realloc_fail(log, sizeof(int) * log->alloc_cap);
 	}
 	log->n_log = tmp_n_log;
 	
 	int *tmp_x_log = (int*) realloc(log->x_log, sizeof(int) * log->alloc_cap);
 	if (tmp_x_log == NULL) {
-		realloc_fail(log);
+		realloc_fail(log, sizeof(int) * log->alloc_cap);
 	}
 	log->x_log = tmp_x_log;
 	
 	unsigned short *tmp_seed_log = (unsigned short*) realloc(log->seed_log, sizeof(unsigned short) * log->alloc_cap);
 	if (tmp_seed_log == NULL) {
-		realloc_fail(log);
+		realloc_fail(log, sizeof(int) * log->alloc_cap);
 	}
 	log->seed_log = tmp_seed_log;
 	
 	int *tmp_summation_log = (int*) realloc(log->summation_log, sizeof(int) * log->alloc_cap);
 	if (tmp_summation_log == NULL) {
-		realloc_fail(log);
+		realloc_fail(log, sizeof(int) * log->alloc_cap);
 	}
 	log->summation_log = tmp_summation_log;
 }
 
-void realloc_fail(DataLog *log) {
-	printf("ERROR REALLOCATING: Exiting program\n");
+void realloc_fail(DataLog *log, size_t size_request) {
+	fprintf(stderr, "ERROR: realloc() fail! Requested new size: %zu bytes.\n", size_request);
 	dump_log(log);
-	exit(0);
+	exit(EXIT_FAILURE);
 }
 
 /*
@@ -355,25 +359,25 @@ void expand_data_log_m(DataLog *log) {
 	
 	int *tmp_n_log = (int*) realloc_fail_test(log->n_log, sizeof(int) * log->alloc_cap);
 	if (tmp_n_log == NULL) {
-		realloc_fail(log);
+		realloc_fail(log, sizeof(int) * log->alloc_cap);
 	}
 	log->n_log = tmp_n_log;
 	
 	int *tmp_x_log = (int*) realloc_fail_test(log->n_log, sizeof(int) * log->alloc_cap);
 	if (tmp_x_log == NULL) {
-		realloc_fail(log);
+		realloc_fail(log, sizeof(int) * log->alloc_cap);
 	}
 	log->x_log = tmp_x_log;
 	
 	unsigned short *tmp_seed_log = (unsigned short*) realloc_fail_test(log->seed_log, sizeof(unsigned short) * log->alloc_cap);
 	if (tmp_seed_log == NULL) {
-		realloc_fail(log);
+		realloc_fail(log, sizeof(int) * log->alloc_cap);
 	}
 	log->seed_log = tmp_seed_log;
 	
 	int *tmp_summation_log = (int*) realloc_fail_test(log->n_log, sizeof(int) * log->alloc_cap);
 	if (tmp_summation_log == NULL) {
-		realloc_fail(log);
+		realloc_fail(log, sizeof(int) * log->alloc_cap);
 	}
 	log->summation_log = tmp_summation_log;
 }*/
